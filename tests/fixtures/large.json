@@ -1,26 +1,25 @@
 {
-    "database": {
-        "host": "localhost",
-        "port": 5432,
-        "user": "raguser",
-        "password_env": "DB_PASSWORD"
+    "api_service": {
+        "image": "gkn/api-gateway:v1.2",
+        "ports": [
+            "8080:8080"
+        ],
+        "description": "This is a detailed description of the api service to increase token count significantly. It handles all incoming RAG requests and routes them to the appropriate backend modules for processing and vector search. It also manages authentication and rate limiting for ITAR compliance."
     },
-    "ollama": {
-        "url": "http://localhost:11434",
-        "model": "llama3.1:8b"
+    "auth_service": {
+        "image": "gkn/auth-module:v0.9",
+        "description": "The authentication module handles user identity management, OIDC integration, and session token issuance. It is critical for ensuring only authorized personnel can access sensitive aerospace data."
     },
-    "embedding": {
-        "model": "nomic-embed-text-v1.5",
-        "dimension": 768
+    "db_service": {
+        "image": "postgres:15-alpine",
+        "description": "PostgreSQL database with pgvector extension. It stores all document metadata and high-dimensional vector embeddings for efficient similarity search across the ITAR-regulated data lake."
     },
-    "ingestion": {
-        "chunk_size": 400,
-        "overlap": 80,
-        "batch_size": 32
+    "ingest_service": {
+        "image": "gkn/ingestion-worker:latest",
+        "description": "A background worker that processes uploaded DOCX, PPTX, and YAML files. It uses the custom parsers to extract text and heading hierarchies before generating embeddings."
     },
-    "security": {
-        "compliant": true,
-        "origin": "USA",
-        "classification": "ITAR-restricted"
+    "monitor_service": {
+        "image": "grafana/grafana:latest",
+        "description": "Monitoring and observability dashboard for system health. It tracks API latency, database query performance, and LLM token usage to ensure high availability and cost management."
     }
 }

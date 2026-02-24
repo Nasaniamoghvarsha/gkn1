@@ -11,7 +11,7 @@ from rich.syntax import Syntax
 from rich.panel import Panel
 
 console = Console()
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8001"
 
 def check_connection():
     try:

@@ -34,39 +34,40 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
                 case "askAgent": {
                     const text = data.value;
-                    // Send to our FastAPI backend
                     try {
-                        // Using global fetch (available in modern VS Code Node environments)
-                        // or we could use axios if it was in package.json
-                        const response = await fetch("http://localhost:8000/generate/agent", {
+                        // Use 127.0.0.1 explicitly to avoid Windows IPv6 localhost resolution issues
+                        const response = await fetch("http://127.0.0.1:8001/generate/agent", {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json"
                             },
                             body: JSON.stringify({
                                 question: text,
-                                language: "yaml" // Hardcoded as requested for first test
+                                language: "yaml"
                             })
                         });
 
                         if (!response.ok) {
-                            throw new Error(`API returned ${response.status}`);
+                            const errorText = await response.text();
+                            throw new Error(`API Error: ${response.status} - ${errorText}`);
                         }
 
                         const result: any = await response.json();
 
-                        // Send back to webview
-                        webviewView.webview.postMessage({
-                            type: "agentResponse",
+                        // Send back to webview as 'addResponse'
+                        this._view?.webview.postMessage({
+                            type: "addResponse",
                             value: result.generated_code,
                             iterations: result.iteration_count
                         });
 
                     } catch (err: any) {
-                        vscode.window.showErrorMessage("Failed to connect to GKN RAG Core: " + err.message);
-                        webviewView.webview.postMessage({
-                            type: "agentError",
-                            value: err.message
+                        const msg = err.message || "Unknown error";
+                        vscode.window.showErrorMessage("GKN RAG Core Error: " + msg);
+                        this._view?.webview.postMessage({
+                            type: "addResponse",
+                            error: true,
+                            value: "Connectivity Error: " + msg + ". Ensure the backend is running on port 8001."
                         });
                     }
                     break;
@@ -80,13 +81,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
-        const styleResetUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, "media", "reset.css")
-        );
-        const styleVSCodeUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css")
-        );
-
         const nonce = getNonce();
 
         return `<!DOCTYPE html>
@@ -96,21 +90,90 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<title>GKN AI Sidebar</title>
                 <style>
-                    body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 10px; }
-                    #chat { height: 70vh; overflow-y: auto; border-bottom: 1px solid #333; margin-bottom: 10px; padding-bottom: 10px; }
-                    .msg { margin-bottom: 15px; }
-                    .user { font-weight: bold; color: var(--vscode-textLink-foreground); }
-                    .agent { color: var(--vscode-debugConsole-infoForeground); }
-                    .code { background: #1e1e1e; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; font-size: 11px; margin-top: 5px; border: 1px solid #444; }
-                    textarea { width: 100%; height: 60px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 3px; resize: none; }
-                    button { width: 100%; padding: 8px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; cursor: pointer; margin-top: 5px; }
+                    body { 
+                        font-family: var(--vscode-font-family); 
+                        color: var(--vscode-foreground); 
+                        padding: 10px; 
+                        display: flex;
+                        flex-direction: column;
+                        height: 100vh;
+                        box-sizing: border-box;
+                    }
+                    #chat { 
+                        flex: 1;
+                        overflow-y: auto; 
+                        border-bottom: 1px solid var(--vscode-panel-border); 
+                        margin-bottom: 10px; 
+                        padding-bottom: 10px; 
+                        display: flex;
+                        flex-direction: column;
+                        gap: 15px;
+                    }
+                    .msg { 
+                        padding: 8px;
+                        border-radius: 4px;
+                    }
+                    .user-msg { 
+                        background: var(--vscode-textBlockQuote-background);
+                        align-self: flex-end;
+                        border-left: 3px solid var(--vscode-textLink-foreground);
+                        width: 90%;
+                    }
+                    .agent-msg { 
+                        background: var(--vscode-sideBar-background);
+                        align-self: flex-start;
+                        border-left: 3px solid var(--vscode-debugConsole-infoForeground);
+                        width: 95%;
+                    }
+                    .user-label { font-weight: bold; color: var(--vscode-textLink-foreground); display: block; margin-bottom: 4px; }
+                    .agent-label { font-weight: bold; color: var(--vscode-debugConsole-infoForeground); display: block; margin-bottom: 4px; }
+                    
+                    .code-block { 
+                        background: #1e1e1e; 
+                        padding: 12px; 
+                        border-radius: 6px; 
+                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
+                        white-space: pre-wrap; 
+                        font-size: 12px; 
+                        margin-top: 8px; 
+                        border: 1px solid #333;
+                        color: #d4d4d4;
+                        line-height: 1.4;
+                        overflow-x: auto;
+                    }
+                    textarea { 
+                        width: 100%; 
+                        height: 80px; 
+                        background: var(--vscode-input-background); 
+                        color: var(--vscode-input-foreground); 
+                        border: 1px solid var(--vscode-input-border); 
+                        border-radius: 4px; 
+                        resize: none; 
+                        padding: 8px;
+                        font-family: inherit;
+                    }
+                    button { 
+                        width: 100%; 
+                        padding: 10px; 
+                        background: var(--vscode-button-background); 
+                        color: var(--vscode-button-foreground); 
+                        border: none; 
+                        cursor: pointer; 
+                        margin-top: 8px; 
+                        font-weight: bold;
+                        border-radius: 2px;
+                    }
                     button:hover { background: var(--vscode-button-hoverBackground); }
-                    .status { font-size: 10px; opacity: 0.7; margin-top: 3px; }
+                    .loading { font-style: italic; opacity: 0.6; font-size: 11px; }
+                    .error { color: var(--vscode-errorForeground); }
                 </style>
 			</head>
 			<body>
 				<div id="chat">
-                    <div class="msg agent">Hello! I am the GKN AI Assistant. Ask me to generate configurations or analyze infrastructure.</div>
+                    <div class="msg agent-msg">
+                        <span class="agent-label">GKN AI Assistant</span>
+                        Hello! I am ready to generate configurations or analyze your infrastructure. What can I help you with today?
+                    </div>
                 </div>
 				<textarea id="input" placeholder="Ask a question..."></textarea>
 				<button id="send">Send to Agent</button>
@@ -121,59 +184,66 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     const inputArea = document.getElementById('input');
                     const sendBtn = document.getElementById('send');
 
+                    function addMessage(type, text, isCode = false, iterations = null) {
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = 'msg ' + (type === 'user' ? 'user-msg' : 'agent-msg');
+                        
+                        const label = document.createElement('span');
+                        label.className = type === 'user' ? 'user-label' : 'agent-label';
+                        label.innerText = type === 'user' ? 'User' : 'Agent' + (iterations ? ' (System Corrected in ' + iterations + ' iterations)' : '');
+                        msgDiv.appendChild(label);
+
+                        if (isCode) {
+                            const codePre = document.createElement('div');
+                            codePre.className = 'code-block';
+                            codePre.innerText = text;
+                            msgDiv.appendChild(codePre);
+                        } else {
+                            const textSpan = document.createElement('span');
+                            textSpan.innerText = text;
+                            msgDiv.appendChild(textSpan);
+                        }
+
+                        chatDiv.appendChild(msgDiv);
+                        chatDiv.scrollTop = chatDiv.scrollHeight;
+                    }
+
                     sendBtn.addEventListener('click', () => {
-                        const text = inputArea.value;
+                        const text = inputArea.value.trim();
                         if (!text) return;
                         
-                        // Add user message to UI
-                        const userDiv = document.createElement('div');
-                        userDiv.className = 'msg';
-                        userDiv.innerHTML = '<span class="user">User:</span> ' + text;
-                        chatDiv.appendChild(userDiv);
-                        
-                        // Clear input
+                        addMessage('user', text);
                         inputArea.value = '';
                         
-                        // Send to Extension Host
                         vscode.postMessage({ type: 'askAgent', value: text });
                         
-                        // Simple placeholder for agent
                         const loadingDiv = document.createElement('div');
-                        loadingDiv.className = 'msg agent';
-                        loadingDiv.id = 'loading';
-                        loadingDiv.innerText = 'Agent is thinking...';
+                        loadingDiv.className = 'msg agent-msg loading';
+                        loadingDiv.id = 'loading-indicator';
+                        loadingDiv.innerText = 'Agent is analyzing and validating output...';
                         chatDiv.appendChild(loadingDiv);
                         chatDiv.scrollTop = chatDiv.scrollHeight;
                     });
 
+                    // Listen for messages from the extension
                     window.addEventListener('message', event => {
                         const message = event.data;
-                        const loading = document.getElementById('loading');
+                        const loading = document.getElementById('loading-indicator');
                         if (loading) loading.remove();
 
                         switch (message.type) {
-                            case 'agentResponse': {
-                                const agentDiv = document.createElement('div');
-                                agentDiv.className = 'msg agent';
-                                agentDiv.innerHTML = '<span class="user">Agent:</span> (Iterations: ' + message.iterations + ')<div class="code">' + escapeHtml(message.value) + '</div>';
-                                chatDiv.appendChild(agentDiv);
-                                break;
-                            }
-                            case 'agentError': {
-                                const errDiv = document.createElement('div');
-                                errDiv.className = 'msg agent';
-                                errDiv.style.color = 'red';
-                                errDiv.innerText = 'Error: ' + message.value;
-                                chatDiv.appendChild(errDiv);
+                            case 'addResponse': {
+                                if (message.error) {
+                                    addMessage('agent', message.value);
+                                    const lastMsg = chatDiv.lastChild;
+                                    lastMsg.classList.add('error');
+                                } else {
+                                    addMessage('agent', message.value, true, message.iterations);
+                                }
                                 break;
                             }
                         }
-                        chatDiv.scrollTop = chatDiv.scrollHeight;
                     });
-
-                    function escapeHtml(text) {
-                        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-                    }
 				</script>
 			</body>
 			</html>`;
