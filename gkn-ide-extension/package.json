@@ -1,0 +1,48 @@
+{
+    "name": "gkn-ai-assistant",
+    "displayName": "GKN AI Assistant",
+    "description": "Deterministic RAG-based AI assistant for GKN Aerospace.",
+    "version": "1.0.0",
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [],
+    "main": "./out/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "gkn-ai-explorer",
+                    "title": "GKN AI",
+                    "icon": "$(rocket)"
+                }
+            ]
+        },
+        "views": {
+            "gkn-ai-explorer": [
+                {
+                    "type": "webview",
+                    "id": "gkn.aiSidebar",
+                    "name": "AI Assistant"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.75.0",
+        "@types/node": "16.x",
+        "typescript": "^4.9.5",
+        "eslint": "^8.36.0"
+    }
+}

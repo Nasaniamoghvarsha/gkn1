@@ -1,0 +1,26 @@
+{
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "user": "raguser",
+        "password_env": "DB_PASSWORD"
+    },
+    "ollama": {
+        "url": "http://localhost:11434",
+        "model": "llama3.1:8b"
+    },
+    "embedding": {
+        "model": "nomic-embed-text-v1.5",
+        "dimension": 768
+    },
+    "ingestion": {
+        "chunk_size": 400,
+        "overlap": 80,
+        "batch_size": 32
+    },
+    "security": {
+        "compliant": true,
+        "origin": "USA",
+        "classification": "ITAR-restricted"
+    }
+}

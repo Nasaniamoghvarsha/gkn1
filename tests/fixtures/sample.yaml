@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  api:
+    image: gkn/rag-api:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - MODEL_NAME=llama3.1:8b
+      - DB_HOST=db
+
+  auth:
+    image: gkn/auth-service:latest
+    command: ["--secure-mode"]
+    volumes:
+      - ./certs:/etc/ssl/certs
+
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=gkn_rag
+      - POSTGRES_USER=raguser
+    ports:
+      - "5432:5432"

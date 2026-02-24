@@ -1,0 +1,15 @@
+psycopg2-binary
+pgvector
+sentence-transformers
+torch
+einops
+rich
+python-dotenv
+python-docx
+langchain-text-splitters
+tiktoken
+python-pptx
+pyyaml
+requests
+pytest
+numpy

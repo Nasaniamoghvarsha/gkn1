@@ -1,0 +1,11 @@
+{
+    "name": "api-gateway",
+    "port": 8080,
+    "version": "1.0",
+    "environment": "production",
+    "tags": [
+        "aerospace",
+        "internal",
+        "ITAR"
+    ]
+}
